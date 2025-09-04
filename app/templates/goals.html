@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Goal Forecasting • Smart Financial Coach</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">💰 Smart Financial Coach</div>
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/insights">Insights</a>
+      <a href="/goals">Goals</a>
+      <a href="/subscriptions">Subscriptions</a>
+      <a href="/credit">Credit Tracker</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero-card">
+      <h2 style="margin:0 0 8px">Personalized Goal Forecasting (ML)</h2>
+      <p class="muted" style="margin:0">Set a goal. We forecast spending with a per-category linear regression and tell you if you’re on track.</p>
+      <form id="goalForm" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+        <div class="card" style="padding:12px">
+          <label>Goal Amount ($)</label>
+          <input id="goalAmount" type="number" min="0" step="100" value="3000" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(168,85,247,0.25);background:#0b0b10;color:#e7e7f7">
+        </div>
+        <div class="card" style="padding:12px">
+          <label>Months</label>
+          <input id="months" type="number" min="1" step="1" value="10" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(168,85,247,0.25);background:#0b0b10;color:#e7e7f7">
+        </div>
+        <div class="card" style="padding:12px">
+          <label>Monthly Income ($)</label>
+          <input id="income" type="number" min="0" step="100" value="5200" style="width:100%;padding:8px;border-radius:10px;border:1px solid rgba(168,85,247,0.25);background:#0b0b10;color:#e7e7f7">
+        </div>
+      </form>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button id="runForecast" class="card" style="padding:10px 14px; color:var(--muted)">
+            Run Forecast
+        </button>
+      </div>
+      
+    </section>
+
+    <section class="grid" style="margin-top:18px">
+      <div class="card">
+        <h3 style="margin-top:0">Status</h3>
+        <ul id="statusList" style="list-style:none;padding-left:0;margin:0;display:grid;gap:8px"></ul>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Top Categories: September 2025</h3>
+        <canvas id="spendBar"></canvas>
+      </div>
+
+      <div class="card" style="grid-column: span 2">
+        <h3 style="margin-top:0">Suggestions to Close the Gap</h3>
+        <ul id="suggestions" style="list-style:none;padding-left:0;margin:0;display:grid;gap:8px"></ul>
+      </div>
+
+      <div class="card" style="grid-column: span 2">
+        <h3 style="margin-top:0">Predicted Monthly Spend (ML)</h3>
+         <p id="mlMeta" class="muted" style="margin:-6px 0 8px 0"></p>
+        <canvas id="mlLine"></canvas>
+      </div>
+    </section>
+  </main>
+
+
+<script>
+const statusList = document.getElementById('statusList');
+const suggList = document.getElementById('suggestions');
+const spendBarCtx = document.getElementById('spendBar').getContext('2d');
+const mlLineCtx = document.getElementById('mlLine').getContext('2d');
+let spendChart, mlLineChart;
+
+document.getElementById('runForecast').addEventListener('click', run);
+
+async function run(){
+  const body = {
+    goal_amount: Number(document.getElementById('goalAmount').value),
+    months: Number(document.getElementById('months').value),
+    monthly_income: Number(document.getElementById('income').value),
+  };
+  const res = await fetch('/api/goals/forecast', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  render(data);
+}
+
+function render(data){
+  // STATUS
+  statusList.innerHTML = '';
+  const pill = document.createElement('li');
+  const ok = data.on_track;
+  const cls = ok ? 'sev-low' : (data.gap_per_month > 300 ? 'sev-high' : 'sev-med');
+  const icon = ok ? '✅' : (cls==='sev-high' ? '⚠️' : 'ℹ️');
+  const msg = ok
+    ? `On track 🎉 projected to save $${data.baseline_total_save.toLocaleString()} vs goal $${data.inputs.goal_total.toLocaleString()}`
+    : `Not on track, short by $${data.gap_total.toLocaleString()} total (~$${data.gap_per_month.toFixed(0)}/mo).`;
+  pill.className = 'insight-pill ' + cls;
+  pill.innerHTML = `<span class="badge">${icon}</span> ${msg}`;
+  statusList.appendChild(pill);
+
+  // BAR: this-month spend by category (matches Insights)
+  const lab = (data.categories_this_month && data.categories_this_month.labels) || [];
+  const val = (data.categories_this_month && data.categories_this_month.values) || [];
+  if (spendChart) spendChart.destroy();
+  spendChart = new Chart(spendBarCtx, {
+    type: 'bar',
+    data: { labels: lab, datasets: [{ data: val }] },
+    options: { plugins:{legend:{display:false}}, responsive:true }
+  });
+
+
+  // SUGGESTIONS
+  suggList.innerHTML = '';
+  if (data.suggestions.length === 0 && !data.on_track){
+    const li = document.createElement('li');
+    li.className = 'insight-pill sev-info';
+    li.innerHTML = `<span class="badge">💡</span> Try small cuts across several categories (e.g., 5–10%) or extend the timeline by 1–2 months.`;
+    suggList.appendChild(li);
+  } else if (data.on_track){
+    const li = document.createElement('li');
+    li.className = 'insight-pill sev-low';
+    li.innerHTML = `<span class="badge">🌱</span> Great job! You will achieve your goal.`;
+    suggList.appendChild(li);
+  } else {
+    data.suggestions.forEach(s => {
+      const li = document.createElement('li');
+      li.className = 'insight-pill sev-med';
+      li.innerHTML = `
+        <span class="badge">✂️</span>
+      <strong>${s.category}</strong>: cut ~$${s.suggested_cut_per_month} / mo (${s.suggested_cut_percent}% of $${s.current_per_month}/mo)
+      `;
+      suggList.appendChild(li);
+    });
+  }
+
+  // Stacked forecast by category + dotted goal line
+    if (mlLineChart) mlLineChart.destroy();
+
+    const fc = data.forecast_by_cat || { months: [], cats: [], values: [] };
+    const labelsF = fc.months;
+    const catsF   = fc.cats;
+    const matF    = fc.values; // shape: [numCats][numMonths]
+    const allowed = data.allowed_spend_per_month ?? 0;
+
+    // compute totals & average predicted monthly spend
+    const totals  = (data.forecast && data.forecast.totals) ? data.forecast.totals : [];
+    const avgPred = totals.length ? totals.reduce((a,b)=>a+b,0) / totals.length : 0;
+
+    // write caption under the chart title
+    const metaEl = document.getElementById('mlMeta');
+    if (metaEl) {
+      metaEl.textContent =
+        `Avg predicted monthly spend: $${Math.round(avgPred).toLocaleString()} • ` +
+        `Max spend to hit goal: $${Math.round(allowed).toLocaleString()}`;
+    }
+
+    // same palette as Insights
+    const palette = {
+    "Rent":"#8b5cf6","Utilities":"#60a5fa","Groceries":"#22c55e",
+    "Dining Out":"#f59e0b","Coffee":"#38bdf8","Transport":"#a78bfa",
+    "Shopping":"#ec4899","Entertainment":"#eab308"
+    };
+
+    // one stacked bar dataset per category
+    const stackDatasets = (catsF || []).map((cat, i) => ({
+    type: 'bar',
+    label: cat,
+    data: (matF[i] || []),
+    stack: 'total',
+    backgroundColor: palette[cat] || '#94a3b8'
+    }));
+
+    // dotted goal line: max spend/month to still hit goal
+    const goalLine = {
+      type: 'line',
+      label: 'Max Spend to Hit Goal ($${Math.round(allowed).toLocaleString()})',
+      data: Array(labelsF.length).fill(allowed),
+      borderWidth: 2,
+      borderDash: [6, 6],
+      pointRadius: 0,
+      borderColor: '#e2e8f0'
+    };
+
+    mlLineChart = new Chart(mlLineCtx, {
+    data: { labels: labelsF, datasets: [...stackDatasets, goalLine] },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: { x: { stacked: true }, y: { stacked: true } }
+    }
+    });
+}
+
+// auto-run once with defaults
+run();
+</script>
+</body>
+</html>

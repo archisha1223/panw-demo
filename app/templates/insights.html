@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Spending Insights</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">💰 Smart Financial Coach</div>
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/insights">Insights</a>
+      <a href="/goals">Goals</a>
+      <a href="/subscriptions">Subscriptions</a>
+      <a href="/credit">Credit Tracker</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero-card">
+        <h2 style="margin:0 0 8px">AI-Powered Spending Insights</h2>
+    </section>
+
+
+    <section class="grid" style="margin-top:18px">
+      <div class="card">
+        <h3 style="margin-top:0">Insights</h3>
+        <ul id="insights" style="margin:0;padding-left:0"></ul>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Top Categories: September 2025</h3>
+        <canvas id="catBar"></canvas>
+      </div>
+
+      <div class="card" style="grid-column: span 2">
+        <h3 style="margin-top:0">Monthly Trend: Main Focus Category</h3>
+        <p class="muted" id="focusLabel" style="margin:0 0 8px"></p>
+        <canvas id="trendLine"></canvas>
+      </div>
+
+      <div class="card" id="rentCard" style="display:none; grid-column: span 2">
+        <h3 style="margin-top:0">Rent Change Detected</h3>
+        <p class="muted" id="rentNote" style="margin:0 0 8px"></p>
+        <canvas id="rentLine"></canvas>
+      </div>
+    </section>
+  </main>
+
+<script>
+const insightsList = document.getElementById('insights');
+const catBarCtx = document.getElementById('catBar').getContext('2d');
+const trendLineCtx = document.getElementById('trendLine').getContext('2d');
+const focusLabel = document.getElementById('focusLabel');
+const rentCard  = document.getElementById('rentCard');
+const rentNote  = document.getElementById('rentNote');
+let barChart, lineChart, rentChart;
+
+async function generateSample() {
+  const res = await fetch('/api/insights/sample');
+  const data = await res.json();
+  render(data);
+}
+
+function render(data){
+  // INSIGHTS → pill cards
+  insightsList.innerHTML = '';
+  data.insights.forEach(it=>{
+    const li = document.createElement('li');
+    li.className = 'insight-pill ' + severityClass(it.severity);
+    li.innerHTML = `<span class="badge">${it.icon || '💡'}</span> ${it.message}`;
+    insightsList.appendChild(li);
+  });
+
+  // CATEGORY BAR (with colors)
+  const labels = data.top_categories.labels || [];
+  const values = data.top_categories.values || [];
+  const colors = data.top_categories.colors || new Array(values.length).fill('#94a3b8');
+  if (barChart) barChart.destroy();
+  barChart = new Chart(catBarCtx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors }] },
+    options: { responsive:true, plugins:{legend:{display:false}} }
+  });
+
+  // FOCUS TREND (non-Rent)
+  focusLabel.textContent = `Category: ${data.focus_category}`;
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(trendLineCtx, {
+    type: 'line',
+    data: { labels: data.trend.labels, datasets: [{ label: 'Monthly Spend', data: data.trend.values }] },
+    options: { responsive:true }
+  });
+
+  // RENT SHIFT (only if present)
+  if (data.rent_shift && data.rent_shift.present){
+    rentCard.style.display = 'block';
+    if (rentChart) rentChart.destroy();
+    rentNote.textContent = `Baseline ≈ $${Math.round(data.rent_shift.from)} → Current $${Math.round(data.rent_shift.to)}.`;
+    rentChart = new Chart(document.getElementById('rentLine').getContext('2d'), {
+      type: 'line',
+      data: { labels: data.rent_shift.labels, datasets: [{ label: 'Rent', data: data.rent_shift.values }] },
+      options: { responsive:true }
+    });
+  } else {
+    rentCard.style.display = 'none';
+  }
+}
+
+function severityClass(s){
+  if (s==='High') return 'sev-high';
+  if (s==='Medium') return 'sev-med';
+  if (s==='Info') return 'sev-info';
+  return 'sev-low';
+}
+
+generateSample(); // auto-load demo
+</script>
+</body>
+</html>

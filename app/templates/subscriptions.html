@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Subscriptions • Smart Financial Coach</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">💰 Smart Financial Coach</div>
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/insights">Insights</a>
+      <a href="/goals">Goals</a>
+      <a href="/subscriptions">Subscriptions</a>
+      <a href="/credit">Credit Tracker</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero-card">
+      <h2 style="margin:0 0 8px">Subscriptions & Gray Charges</h2>
+      <p class="muted" style="margin:0">We scan your transactions for recurring subscriptions, free-trial upgrades, and small “gray charges.”</p>
+    </section>
+
+    <section class="grid" style="margin-top:18px">
+      <div class="card">
+        <h3 style="margin-top:0">Summary</h3>
+        <ul id="summary" class="muted" style="margin:0; padding-left:16px"></ul>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Subscriptions</h3>
+        <div id="subs"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Expired Trials → Paid</h3>
+        <div id="trials"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">TODO: Actions 🚨</h3>
+        <ul id="actions" style="list-style:none;padding-left:0;margin:0;display:grid;gap:8px"></ul>
+        <div id="grays"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const summaryEl = document.getElementById('summary');
+const subsEl = document.getElementById('subs');
+const trialsEl = document.getElementById('trials');
+const graysEl = document.getElementById('grays');
+
+function pill(text, cls){
+  const li = document.createElement('div');
+  li.className = 'insight-pill ' + cls;
+  li.innerHTML = `<span class="badge">🔔</span> ${text}`;
+  return li;
+}
+function row(items){
+  const div = document.createElement('div');
+  div.style.display='grid';
+  div.style.gridTemplateColumns='1.4fr .7fr .7fr .9fr';
+  div.style.gap='10px';
+  div.style.padding='10px 0';
+  return div;
+}
+function headerRow(...labels){
+  const h = row();
+  h.style.fontWeight='700';
+  labels.forEach(t=>{ const s=document.createElement('div'); s.textContent=t; h.appendChild(s); });
+  h.style.borderBottom='1px solid rgba(148,163,184,.2)';
+  return h;
+}
+
+async function load(){
+  const res = await fetch('/api/subscriptions/scan');
+  const data = await res.json();
+
+  // summary
+  summaryEl.innerHTML = '';
+  summaryEl.style.display = 'grid';
+  summaryEl.style.gap = '12px';
+
+  const subsCount   = data.summary?.subscriptions_count ?? 0;
+  const trials      = data.trials ?? [];
+  const trialsCount = trials.length;
+
+  // monthly subs total from backend
+  const subsMonthly = data.summary?.estimated_monthly_spend_on_subs ?? 0;
+
+  // add the first-month paid amount from trials (treat as gray-like)
+  const trialsTotal = trials.reduce((sum, t) => sum + (t.upgrade_amount || 0), 0);
+
+  // combined monthly view for the demo headline
+  const combinedMonthly = subsMonthly + trialsTotal;
+
+  summaryEl.appendChild(pill(`${subsCount} subscriptions`, 'sev-info'));
+  summaryEl.appendChild(pill(`${trialsCount} expired trials → paid`, 'sev-med'));
+  summaryEl.appendChild(
+    pill(`≈ $${combinedMonthly.toLocaleString()} / mo on subscriptions & gray charges`, 'sev-low')
+  );
+
+  // subscriptions table
+  subsEl.innerHTML='';
+  subsEl.appendChild(headerRow('Merchant','Avg / mo','Period','Next Bill (est.)'));
+  (data.subscriptions || []).forEach(s=>{
+    const r = row();
+    r.innerHTML = `
+      <div><strong>${s.merchant}</strong>
+        <div class="muted" style="font-size:.9em">
+            Since ${s.first_seen} • ${s.occurrences} charges • confidence ${Math.round(s.confidence*100)}%
+        </div>
+      </div>
+      <div>$${s.avg_monthly.toFixed(2)}</div>
+      <div>${(s.period || s.cadence || '').replace(/\s*\(~\d+d\)/,'')}</div>
+      <div>${s.next_estimated}</div>
+    `;
+    subsEl.appendChild(r);
+  });
+  if ((data.subscriptions || []).length === 0) subsEl.appendChild(pill('No recurring subscriptions found.', 'sev-low'));
+
+  // trials table
+  trialsEl.innerHTML='';
+  trialsEl.appendChild(headerRow('Merchant','Upgrade Amount','Why','Upgrade Date'));
+  (data.trials || []).forEach(t=>{
+    const r = row();
+    r.innerHTML = `
+      <div><strong>${t.merchant}</strong></div>
+      <div>$${t.upgrade_amount.toFixed(2)}</div>
+      <div>${t.trial_indicator}</div>
+      <div>${t.upgrade_date}</div>
+    `;
+    trialsEl.appendChild(r);
+  });
+  if ((data.trials || []).length === 0) trialsEl.appendChild(pill('No trial → paid patterns this month.', 'sev-low'));
+
+  // actions
+  const actionsEl = document.getElementById('actions'); // make sure your div has id="actions"
+  actionsEl.innerHTML = '';
+
+  const li = document.createElement('li');
+  li.className = 'insight-pill sev-high'; // red to alarm the user
+  li.innerHTML = `<span class="badge">⚠️</span> Cancel <strong>HBO Max</strong> to avoid paying for an additional month.`;
+  actionsEl.appendChild(li);
+
+
+}
+load();
+</script>
+</body>
+</html>

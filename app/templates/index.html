@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Smart Financial Coach</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">💰 Smart Financial Coach</div>
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/insights">Insights</a>
+      <a href="/goals">Goals</a>
+      <a href="/subscriptions">Subscriptions</a>
+      <a href="/credit">Credit Tracker</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero hero-card">
+      <h1 class="title">Welcome, {{ " " + name if name else "" }} </h1>
+      <p class="subtitle">Current Balance</p>
+      <div class="balance">{{ balance }}</div>
+      <p class="muted">Here to help YOU navigate your financial world. Spend smarter and save faster.</p>
+    </section>
+
+    {% if pages and not placeholder %}
+    <section class="grid">
+      {% for p in pages %}
+      <a class="feature card" href="{{ p.href }}">
+        <h3>{{ p.label }}</h3>
+        <p>Get Started →</p>
+      </a>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if placeholder %}
+    <section class="card placeholder">
+      <h2>{{ placeholder }}</h2>
+      <p>We’ll implement this page right after the homepage.</p>
+    </section>
+    {% endif %}
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,101 @@
+:root{
+  --bg:#0b0b10;
+  --card:#141422;
+  --text:#e7e7f7;
+  --muted:#a4a4be;
+  --neon-purple:#a855f7;
+  --neon-blue:#38bdf8;
+  --neon-green:#22c55e;
+  --ring: 0 0 0 2px rgba(168,85,247,0.35), 0 0 20px rgba(56,189,248,0.25);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--neon-blue);text-decoration:none}
+a:hover{opacity:.9}
+
+.nav{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;background:rgba(10,10,18,0.7);backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(168,85,247,0.25)
+}
+.brand{font-weight:700;letter-spacing:.3px}
+.links a{margin-left:16px;padding:6px 10px;border-radius:10px;border:1px solid transparent}
+.links a:hover{border-color:rgba(56,189,248,0.4);box-shadow:var(--ring)}
+
+.container{max-width:1000px;margin:40px auto;padding:0 16px}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.card{
+  background:linear-gradient(180deg, rgba(20,20,34,1) 0%, rgba(16,16,26,1) 100%);
+  border:1px solid rgba(168,85,247,0.25);
+  border-radius:18px;padding:22px;box-shadow:0 8px 24px rgba(0,0,0,.35)
+}
+
+.hero-card {
+  background: linear-gradient(180deg, rgba(40, 40, 70, 1) 0%, rgba(168,85,247,0.25) 100%);
+  border:1px solid rgba(168,85,247,0.25);
+  border-radius:18px;padding:22px;
+}
+
+.hero{text-align:center}
+.title{font-size:2rem;margin:0 0 6px}
+.subtitle{color:var(--muted);margin:0}
+.balance{
+  margin:14px auto 10px;font-size:2.4rem;font-weight:800;
+  background: linear-gradient(90deg,var(--neon-purple),var(--neon-blue),var(--neon-green));
+  -webkit-background-clip:text;background-clip:text;color:transparent
+}
+.muted{color:var(--muted)}
+
+.feature h3{margin:0 0 8px;font-size:1.1rem;color:var(--neon-blue)}
+.feature p{margin:0;color:var(--muted)}
+.feature:hover{box-shadow:var(--ring);transform:translateY(-1px);transition:.15s ease}
+
+.placeholder h2{margin-top:0;color:var(--neon-green)}
+
+.footer{
+  margin:40px 0 20px;text-align:center;color:var(--muted);font-size:.9rem
+}
+
+/* Insights pills */
+#insights{list-style:none;padding-left:0;display:grid;gap:10px}
+.insight-pill{
+  display:flex;align-items:center;gap:8px;
+  border-radius:999px;padding:10px 14px;
+  background:#111321;border:1px solid rgba(148,163,184,.25)
+}
+.insight-pill .badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:999px;background:#0b0f1a
+}
+
+.sev-high {
+  background: rgba(148, 42, 42, 0.8);
+  border-color: rgba(239,68,68,0.8);
+  box-shadow: 0 0 12px rgba(239,68,68,.4);
+}
+
+.sev-med {
+  background: rgba(195, 154, 30, 0.8);
+  border-color: rgba(234,179,8,0.8);
+  box-shadow: 0 0 12px rgba(234,179,8,.4);
+}
+
+.sev-info {
+  background: rgba(40, 130, 168, 0.8);
+  border-color: rgba(56,189,248,0.8);
+  box-shadow: 0 0 12px rgba(56,189,248,.4);
+}
+
+.sev-low {
+  background: rgba(21, 133, 62, 0.8);
+  border-color: rgba(34,197,94,0.8);
+  box-shadow: 0 0 12px rgba(34,197,94,.4);
+}
